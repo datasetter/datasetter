@@ -1,26 +1,41 @@
-name: Upload Python Package
+name: Upload Python Package to PyPI
 
 on:
-  release:
-    types: [created]
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*.*.*'  # This is a pattern for semantic versioning tags
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # Needed for trusted publishing
+    environment:
+      name: pypi
+      url: https://pypi.org/p/datasetter
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
+
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v3
       with:
         python-version: '3.x'
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install setuptools wheel twine
-    - name: Build and publish
-      env:
-        TWINE_USERNAME: __token__
-        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        pip install setuptools wheel
+
+    - name: Build package
       run: |
         python setup.py sdist bdist_wheel
-        twine upload dist/*
+
+    - name: Publish package to PyPI
+      uses: pypa/gh-action-pypi-publish@v1.8.10
+      with:
+        packages-dir: dist/
+        verify-metadata: true
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')  # This ensures it only runs on tag push
